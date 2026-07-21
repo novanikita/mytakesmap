@@ -1,0 +1,31 @@
+{
+  "name": "mytakesmap",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "sh scripts/dev.sh",
+    "dev:fast": "echo '⚠ Use npm run dev instead — dev:fast can corrupt .next cache' && next dev",
+    "build": "next build",
+    "build:local": "sh scripts/build.sh",
+    "clean": "sh scripts/clean.sh",
+    "typecheck": "tsc --noEmit",
+    "start": "next start",
+    "lint": "next lint",
+    "seed": "npx tsx scripts/generate-seed.ts"
+  },
+  "dependencies": {
+    "next": "^15.3.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "eslint": "^9.27.0",
+    "eslint-config-next": "^15.3.3",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3"
+  }
+}
