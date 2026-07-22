@@ -224,6 +224,7 @@ export function MapItem({ item }: MapItemProps) {
       alt={item.title}
       className="block w-full object-cover"
       style={{ height: "var(--card-expanded-h)", maxWidth: "none" }}
+      decoding="async"
       draggable={false}
     />
   ) : (
@@ -248,6 +249,8 @@ export function MapItem({ item }: MapItemProps) {
         maxWidth: "none",
         objectFit: "cover",
       }}
+      loading="lazy"
+      decoding="async"
       draggable={false}
     />
   ) : (
