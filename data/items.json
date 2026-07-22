@@ -156,6 +156,18 @@
     "watchedYear": 2019
   },
   {
+    "id": "movie-die-my-love",
+    "type": "movie",
+    "title": "Die My Love",
+    "year": 2025,
+    "director": "Lynne Ramsay",
+    "coverUrl": "/covers/die-my-love.jpg",
+    "description": "A writer's isolation in a cabin spirals into violent madness",
+    "x": -90,
+    "y": -60,
+    "watchedYear": 2026
+  },
+  {
     "id": "book-flowers-for-algernon",
     "type": "book",
     "title": "Flowers for Algernon",
