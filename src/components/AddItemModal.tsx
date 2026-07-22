@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { getAdminHeaders } from "@/lib/admin";
+import { useEffect, useState } from "react";
+import { CoordPicker } from "@/components/CoordPicker";
 import { ItemType, NewItemInput } from "@/lib/types";
 
 interface AddItemModalProps {
@@ -23,10 +23,22 @@ const emptyForm: NewItemInput = {
   watchedYear: new Date().getFullYear(),
 };
 
+const field =
+  "w-full rounded border border-white/15 bg-transparent px-2.5 py-1.5 text-sm text-white outline-none placeholder:text-white/25 focus:border-white/40";
+
+const label = "flex flex-col gap-1 text-xs tracking-wide text-white/45";
+
 export function AddItemModal({ open, onClose, onSubmit, defaultType }: AddItemModalProps) {
   const [form, setForm] = useState<NewItemInput>({ ...emptyForm, type: defaultType });
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setForm({ ...emptyForm, type: defaultType });
+      setUploadError("");
+    }
+  }, [open, defaultType]);
 
   if (!open) return null;
 
@@ -43,7 +55,6 @@ export function AddItemModal({ open, onClose, onSubmit, defaultType }: AddItemMo
     try {
       const res = await fetch("/api/upload", {
         method: "POST",
-        headers: getAdminHeaders(),
         body,
       });
       const data = await res.json();
@@ -70,143 +81,149 @@ export function AddItemModal({ open, onClose, onSubmit, defaultType }: AddItemMo
 
   return (
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <form
         onClick={(e) => e.stopPropagation()}
         onSubmit={handleSubmit}
-        className="flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-lg border border-white/20 bg-zinc-900 p-6"
+        className="scroll-thin flex max-h-[min(90vh,40rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-white/15 bg-zinc-950"
       >
-        <h2 className="text-lg">Add item</h2>
-
-        <label className="flex flex-col gap-1 text-sm text-white/70">
-          Type
-          <select
-            value={form.type}
-            onChange={(e) => setField("type", e.target.value as ItemType)}
-            className="rounded border border-white/20 bg-black px-3 py-2 text-white"
-          >
-            <option value="movie">Movie</option>
-            <option value="book">Book</option>
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm text-white/70">
-          Title
-          <input
-            required
-            value={form.title}
-            onChange={(e) => setField("title", e.target.value)}
-            className="rounded border border-white/20 bg-black px-3 py-2 text-white"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm text-white/70">
-          Release year
-          <input
-            required
-            type="number"
-            value={form.year}
-            onChange={(e) => setField("year", Number(e.target.value))}
-            className="rounded border border-white/20 bg-black px-3 py-2 text-white"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm text-white/70">
-          {form.type === "movie" ? "Director" : "Author"}
-          <input
-            required
-            value={form.director}
-            onChange={(e) => setField("director", e.target.value)}
-            className="rounded border border-white/20 bg-black px-3 py-2 text-white"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm text-white/70">
-          Year watched / read
-          <input
-            required
-            type="number"
-            value={form.watchedYear}
-            onChange={(e) => setField("watchedYear", Number(e.target.value))}
-            className="rounded border border-white/20 bg-black px-3 py-2 text-white"
-          />
-        </label>
-
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1 text-sm text-white/70">
-            X (engagement)
-            <input
-              type="number"
-              min={-100}
-              max={100}
-              value={form.x}
-              onChange={(e) => setField("x", Number(e.target.value))}
-              className="rounded border border-white/20 bg-black px-3 py-2 text-white"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm text-white/70">
-            Y (comfort)
-            <input
-              type="number"
-              min={-100}
-              max={100}
-              value={form.y}
-              onChange={(e) => setField("y", Number(e.target.value))}
-              className="rounded border border-white/20 bg-black px-3 py-2 text-white"
-            />
-          </label>
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+          <h2 className="text-base text-white">Add</h2>
+          <div className="flex items-center gap-1 rounded-full border border-white/15 p-0.5">
+            {(["movie", "book"] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setField("type", type)}
+                className={`rounded-full px-3 py-1 text-xs transition ${
+                  form.type === type
+                    ? "bg-white text-black"
+                    : "text-white/50 hover:text-white"
+                }`}
+              >
+                {type === "movie" ? "Movie" : "Book"}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2 text-sm text-white/70">
-          <span>Cover</span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="rounded border border-white/20 bg-black px-3 py-2 text-white file:mr-3 file:rounded file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-white"
-          />
-          {uploading && <span className="text-xs text-white/40">Uploading…</span>}
-          {uploadError && <span className="text-xs text-red-400">{uploadError}</span>}
-          {form.coverUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={form.coverUrl}
-              alt="Preview"
-              className="mt-1 h-24 w-auto rounded object-cover"
-            />
-          )}
-          <input
-            value={form.coverUrl}
-            onChange={(e) => setField("coverUrl", e.target.value)}
-            placeholder="or paste URL: https://..."
-            className="rounded border border-white/20 bg-black px-3 py-2 text-white"
+        <div className="scroll-thin grid min-h-0 flex-1 gap-5 overflow-y-auto p-5 md:grid-cols-[1fr_13rem]">
+          <div className="flex flex-col gap-3">
+            <label className={label}>
+              Title
+              <input
+                required
+                value={form.title}
+                onChange={(e) => setField("title", e.target.value)}
+                className={field}
+                placeholder="Title"
+              />
+            </label>
+
+            <label className={label}>
+              {form.type === "movie" ? "Director" : "Author"}
+              <input
+                required
+                value={form.director}
+                onChange={(e) => setField("director", e.target.value)}
+                className={field}
+              />
+            </label>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className={label}>
+                Release year
+                <input
+                  required
+                  type="number"
+                  value={form.year}
+                  onChange={(e) => setField("year", Number(e.target.value))}
+                  className={field}
+                />
+              </label>
+              <label className={label}>
+                Watched / read
+                <input
+                  required
+                  type="number"
+                  value={form.watchedYear}
+                  onChange={(e) => setField("watchedYear", Number(e.target.value))}
+                  className={field}
+                />
+              </label>
+            </div>
+
+            <div className="flex gap-3">
+              <div className="relative h-[4.5rem] w-[3.2rem] shrink-0 overflow-hidden rounded border border-white/15 bg-black">
+                {form.coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={form.coverUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[0.6rem] text-white/25">
+                    cover
+                  </div>
+                )}
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
+                <label className="cursor-pointer text-xs text-white/45 underline underline-offset-2 hover:text-white/70">
+                  {uploading ? "Uploading…" : "Upload cover"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="sr-only"
+                  />
+                </label>
+                <input
+                  value={form.coverUrl}
+                  onChange={(e) => setField("coverUrl", e.target.value)}
+                  placeholder="or paste URL"
+                  className={field}
+                />
+                {uploadError && (
+                  <span className="text-xs text-red-400">{uploadError}</span>
+                )}
+              </div>
+            </div>
+
+            <label className={label}>
+              Description
+              <textarea
+                value={form.description}
+                onChange={(e) => setField("description", e.target.value)}
+                rows={2}
+                placeholder="A short take"
+                className={`${field} resize-none`}
+              />
+            </label>
+          </div>
+
+          <CoordPicker
+            x={form.x}
+            y={form.y}
+            onChange={({ x, y }) => setForm((prev) => ({ ...prev, x, y }))}
+            className="md:pt-0"
           />
         </div>
 
-        <label className="flex flex-col gap-1 text-sm text-white/70">
-          Short description
-          <textarea
-            value={form.description}
-            onChange={(e) => setField("description", e.target.value)}
-            rows={3}
-            className="resize-none rounded border border-white/20 bg-black px-3 py-2 text-white"
-          />
-        </label>
-
-        <div className="flex gap-3 pt-2">
+        <div className="flex items-center justify-end gap-5 border-t border-white/10 px-5 py-3">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded border border-white/20 px-4 py-2 text-sm text-white/60 hover:text-white"
+            className="text-sm text-white/45 underline underline-offset-4 transition hover:text-white"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={uploading}
-            className="flex-1 rounded bg-white px-4 py-2 text-sm text-black hover:bg-white/90 disabled:opacity-50"
+            className="rounded-full border border-white/25 px-5 py-1.5 text-sm text-white transition hover:border-white/60 disabled:opacity-50"
           >
             Add
           </button>

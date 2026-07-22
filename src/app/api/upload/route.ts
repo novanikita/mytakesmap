@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import { verifyAdmin, unauthorized } from "@/lib/adminServer";
+import { auth } from "@/auth";
+import { saveCover } from "@/lib/covers";
 
 export async function POST(request: Request) {
-  if (!verifyAdmin(request)) return unauthorized();
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const formData = await request.formData();
   const file = formData.get("file");
@@ -17,17 +19,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Images only" }, { status: 400 });
   }
 
-  if (file.size > 5 * 1024 * 1024) {
-    return NextResponse.json({ error: "Max 5 MB" }, { status: 400 });
+  if (file.size > 4 * 1024 * 1024) {
+    return NextResponse.json({ error: "Max 4 MB" }, { status: 400 });
   }
 
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const safeName = `${Date.now()}.${ext}`;
-  const dir = path.join(process.cwd(), "public", "covers");
-  await mkdir(dir, { recursive: true });
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(dir, safeName), buffer);
-
-  return NextResponse.json({ url: `/covers/${safeName}` });
+  try {
+    const url = await saveCover(file, session.user.id);
+    return NextResponse.json({ url });
+  } catch (err) {
+    console.error("Cover upload failed:", err);
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+  }
 }

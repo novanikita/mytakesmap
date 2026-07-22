@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { noto } from "@/lib/fonts";
+import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={noto.className}>
       <body>
-        {children}
-        <div id="expanded-card-root" />
+        <AuthProvider>
+          {children}
+          <div id="expanded-card-root" />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -5,26 +5,37 @@
   "scripts": {
     "dev": "sh scripts/dev.sh",
     "dev:fast": "echo '⚠ Use npm run dev instead — dev:fast can corrupt .next cache' && next dev",
-    "build": "next build",
+    "build": "prisma generate && prisma migrate deploy && next build",
     "build:local": "sh scripts/build.sh",
+    "postinstall": "prisma generate",
     "clean": "sh scripts/clean.sh",
     "typecheck": "tsc --noEmit",
     "start": "next start",
     "lint": "next lint",
-    "seed": "npx tsx scripts/generate-seed.ts"
+    "seed": "npx tsx scripts/generate-seed.ts",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "@vercel/blob": "^2.6.1",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
     "next": "^15.3.3",
+    "next-auth": "^5.0.0-beta.32",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
     "eslint": "^9.27.0",
     "eslint-config-next": "^15.3.3",
     "postcss": "^8.5.4",
+    "prisma": "^6.19.3",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3"
   }
