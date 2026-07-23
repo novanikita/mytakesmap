@@ -13,7 +13,7 @@
   --card-h: 4.2rem;
   --card-expanded-w: 20rem;
   --card-expanded-h: 28rem;
-  --parallax-range: 3.25rem;
+  --parallax-range: 1.5rem;
   --zoom-from: 0.15;
 }
 
@@ -23,7 +23,7 @@
     --card-h: 2.8rem;
     --card-expanded-w: 15rem;
     --card-expanded-h: 21rem;
-    --parallax-range: 2rem;
+    --parallax-range: 0.9rem;
     --zoom-from: 0.133;
   }
 }
