@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   coordToMapPercent,
-  coordToPercent,
   clampMapTopPercent,
   depthParallaxSpeed,
   depthZIndex,
@@ -57,10 +56,11 @@ export function MapItem({ item }: MapItemProps) {
   const [closing, setClosing] = useState(false);
   const [placement, setPlacement] = useState<ExpandedPlacement | null>(null);
 
-  const baseTop = coordToPercent(-item.y) + yearOffsetPercent(item.watchedYear);
   const [pos, setPos] = useState({
-    left: coordToPercent(item.x),
-    top: baseTop,
+    left: coordToMapPercent(item.x, "x"),
+    top: clampMapTopPercent(
+      coordToMapPercent(-item.y, "y") + yearOffsetPercent(item.watchedYear),
+    ),
   });
 
   const depth = yearToDepth(item.watchedYear);
@@ -182,11 +182,19 @@ export function MapItem({ item }: MapItemProps) {
   }, [expanded]);
 
   useLayoutEffect(() => {
-    setPos({
-      left: coordToMapPercent(item.x, "x"),
-      // +Y = Comfort (top), -Y = Challenge (bottom) — invert for CSS top%
-      top: clampMapTopPercent(coordToMapPercent(-item.y, "y") + yearOffsetPercent(item.watchedYear)),
-    });
+    const updatePosition = () => {
+      setPos({
+        left: coordToMapPercent(item.x, "x"),
+        // +Y = Comfort (top), -Y = Challenge (bottom) — invert for CSS top%
+        top: clampMapTopPercent(
+          coordToMapPercent(-item.y, "y") + yearOffsetPercent(item.watchedYear),
+        ),
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    return () => window.removeEventListener("resize", updatePosition);
   }, [item.x, item.y, item.watchedYear]);
 
   useLayoutEffect(() => {

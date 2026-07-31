@@ -7,32 +7,55 @@ export function coordToPercent(value: number): number {
   return ((clamped + 100) / 200) * 100;
 }
 
-/** Координата -100…100 → % с отступом под половину карточки */
+function rootRemVariable(name: string, fallback: number): number {
+  const styles = getComputedStyle(document.documentElement);
+  const value = parseFloat(styles.getPropertyValue(name));
+  const rootFontSize = parseFloat(styles.fontSize);
+  return (Number.isFinite(value) ? value : fallback) * rootFontSize;
+}
+
+function mapInsetsPx(axis: "x" | "y"): { start: number; end: number } {
+  const styles = getComputedStyle(document.documentElement);
+  const rootFontSize = parseFloat(styles.fontSize);
+  const size = parseFloat(styles.getPropertyValue(axis === "x" ? "--card-w" : "--card-h"));
+  const halfCard = ((Number.isFinite(size) ? size : axis === "x" ? 2 : 2.8) * rootFontSize) / 2;
+  const parallax = rootRemVariable("--parallax-range", 0.65);
+
+  if (axis === "x") {
+    const padding = rootRemVariable("--map-pad-x", 1.25);
+    return { start: padding + halfCard + parallax, end: padding + halfCard + parallax };
+  }
+
+  return {
+    start: rootRemVariable("--map-pad-top", 4) + halfCard + parallax,
+    end: rootRemVariable("--map-pad-bottom", 2) + halfCard + parallax,
+  };
+}
+
+/** Координата -100…100 → % внутри безопасной области карты */
 export function coordToMapPercent(value: number, axis: "x" | "y"): number {
   const t = coordToPercent(value);
   if (typeof window === "undefined") {
-    const inset = axis === "x" ? 2 : 3;
-    return inset + (t / 100) * (100 - 2 * inset);
+    const start = axis === "x" ? 4 : 12;
+    const end = axis === "x" ? 4 : 7;
+    return start + (t / 100) * (100 - start - end);
   }
 
-  const fs = parseFloat(getComputedStyle(document.documentElement).fontSize);
-  const styles = getComputedStyle(document.documentElement);
-  const sizeEm = parseFloat(styles.getPropertyValue(axis === "x" ? "--card-w" : "--card-h")) || (axis === "x" ? 3 : 4.2);
-  const halfPx = (sizeEm * fs) / 2;
   const span = axis === "x" ? window.innerWidth : window.innerHeight;
-  const inset = (halfPx / span) * 100;
+  const insets = mapInsetsPx(axis);
+  const start = (insets.start / span) * 100;
+  const end = (insets.end / span) * 100;
 
-  return inset + (t / 100) * (100 - 2 * inset);
+  return start + (t / 100) * (100 - start - end);
 }
 
-/** Ограничивает top%, чтобы карточка не выходила за край по вертикали */
+/** Ограничивает top%, чтобы карточка и параллакс оставались внутри карты */
 export function clampMapTopPercent(topPercent: number): number {
   if (typeof window === "undefined") return topPercent;
-  const fs = parseFloat(getComputedStyle(document.documentElement).fontSize);
-  const hEm =
-    parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-h")) || 4.2;
-  const inset = ((hEm * fs) / 2 / window.innerHeight) * 100;
-  return Math.max(inset, Math.min(100 - inset, topPercent));
+  const insets = mapInsetsPx("y");
+  const start = (insets.start / window.innerHeight) * 100;
+  const end = (insets.end / window.innerHeight) * 100;
+  return Math.max(start, Math.min(100 - end, topPercent));
 }
 
 /** 0 — далеко (старый просмотр), 1 — близко (новый) */

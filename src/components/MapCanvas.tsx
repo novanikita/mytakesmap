@@ -13,7 +13,7 @@ interface MapCanvasProps {
 
 export function MapCanvas({ items, filterType }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { onMouseMove, onTouchMove, onPointerLeave } = usePointerParallax(containerRef, 0.05);
+  const { onMouseMove, onTouchMove, onPointerLeave } = usePointerParallax(containerRef, 0.035);
 
   const [displayType, setDisplayType] = useState(filterType);
   const [fade, setFade] = useState(1);
