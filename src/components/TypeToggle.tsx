@@ -7,7 +7,7 @@ interface TypeToggleProps {
 
 export function TypeToggle({ value, onChange }: TypeToggleProps) {
   return (
-    <div className="flex items-center gap-1 rounded-full border border-white/20 bg-black/60 p-1 backdrop-blur-sm">
+    <div className="flex items-center gap-1 rounded-full border border-white/20 bg-black/75 p-1">
       <button
         type="button"
         onClick={() => onChange("movie")}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { LibraryItem, NewItemInput } from "@/lib/types";
-import { randomColor } from "@/lib/coordinates";
+import { normalizeNewItem, validateNewItem } from "@/lib/itemValidation";
 import { normalizeUsername } from "@/lib/validation";
 
 function toLibraryItem(item: {
@@ -60,28 +60,59 @@ export async function POST(request: Request) {
   }
 
   const input = (await request.json()) as NewItemInput;
-
-  if (!input.title?.trim()) {
-    return NextResponse.json({ error: "Title is required" }, { status: 400 });
+  const error = validateNewItem(input);
+  if (error) {
+    return NextResponse.json({ error }, { status: 400 });
   }
 
-  const color = input.coverUrl ? null : randomColor();
+  const data = normalizeNewItem(input);
 
   await prisma.item.create({
     data: {
       userId: session.user.id,
-      type: input.type,
-      title: input.title.trim(),
-      year: Number(input.year),
-      director: input.director.trim(),
-      coverUrl: input.coverUrl?.trim() ?? "",
-      description: input.description?.trim() ?? "",
-      x: Number(input.x),
-      y: Number(input.y),
-      watchedYear: Number(input.watchedYear),
-      color,
+      type: data.type,
+      title: data.title,
+      year: data.year,
+      director: data.director,
+      coverUrl: data.coverUrl,
+      description: data.description,
+      x: data.x,
+      y: data.y,
+      watchedYear: data.watchedYear,
+      color: null,
     },
   });
+
+  const items = await prisma.item.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return NextResponse.json(items.map(toLibraryItem));
+}
+
+export async function DELETE(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id")?.trim();
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+
+  const existing = await prisma.item.findFirst({
+    where: { id, userId: session.user.id },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ error: "Item not found" }, { status: 404 });
+  }
+
+  await prisma.item.delete({ where: { id } });
 
   const items = await prisma.item.findMany({
     where: { userId: session.user.id },

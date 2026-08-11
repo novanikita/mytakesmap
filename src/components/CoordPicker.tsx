@@ -5,8 +5,10 @@ import { useRef } from "react";
 interface CoordPickerProps {
   x: number;
   y: number;
+  placed: boolean;
   onChange: (coords: { x: number; y: number }) => void;
   className?: string;
+  error?: string;
 }
 
 function clampCoord(n: number): number {
@@ -26,7 +28,14 @@ function pointToCoords(clientX: number, clientY: number, el: HTMLElement) {
 const inputClass =
   "w-full rounded border border-white/15 bg-transparent px-2 py-1.5 text-sm text-white outline-none placeholder:text-white/25 focus:border-white/40";
 
-export function CoordPicker({ x, y, onChange, className = "" }: CoordPickerProps) {
+export function CoordPicker({
+  x,
+  y,
+  placed,
+  onChange,
+  className = "",
+  error,
+}: CoordPickerProps) {
   const padRef = useRef<HTMLDivElement>(null);
 
   function place(clientX: number, clientY: number) {
@@ -40,6 +49,9 @@ export function CoordPicker({ x, y, onChange, className = "" }: CoordPickerProps
 
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
+      <p className="text-xs tracking-wide text-white/45">
+        Position <span className="text-white/25">(required)</span>
+      </p>
       <div
         ref={padRef}
         role="slider"
@@ -55,7 +67,9 @@ export function CoordPicker({ x, y, onChange, className = "" }: CoordPickerProps
           if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
           place(e.clientX, e.clientY);
         }}
-        className="relative aspect-square w-full cursor-crosshair select-none overflow-hidden rounded border border-white/15 bg-black touch-none"
+        className={`relative aspect-square w-full cursor-crosshair select-none overflow-hidden rounded border bg-black touch-none ${
+          error ? "border-red-400/50" : "border-white/15"
+        }`}
       >
         <div className="pointer-events-none absolute inset-y-4 left-1/2 w-px -translate-x-1/2 bg-white/20" />
         <div className="pointer-events-none absolute inset-x-5 top-1/2 h-px -translate-y-1/2 bg-white/20" />
@@ -73,10 +87,16 @@ export function CoordPicker({ x, y, onChange, className = "" }: CoordPickerProps
           Engagement
         </span>
 
-        <div
-          className="pointer-events-none absolute z-10 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_8px_1px_rgba(255,255,255,0.4)]"
-          style={{ left: `${left}%`, top: `${top}%` }}
-        />
+        {placed ? (
+          <div
+            className="pointer-events-none absolute z-10 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_8px_1px_rgba(255,255,255,0.4)]"
+            style={{ left: `${left}%`, top: `${top}%` }}
+          />
+        ) : (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-[0.65rem] text-white/30">
+            Tap to place
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -86,10 +106,13 @@ export function CoordPicker({ x, y, onChange, className = "" }: CoordPickerProps
             type="number"
             min={-100}
             max={100}
-            value={x}
-            onChange={(e) =>
-              onChange({ x: clampCoord(Number(e.target.value) || 0), y })
-            }
+            value={placed ? x : ""}
+            placeholder="—"
+            onChange={(e) => {
+              const next = e.target.value;
+              if (next === "") return;
+              onChange({ x: clampCoord(Number(next) || 0), y: placed ? y : 0 });
+            }}
             className={inputClass}
           />
         </label>
@@ -99,14 +122,18 @@ export function CoordPicker({ x, y, onChange, className = "" }: CoordPickerProps
             type="number"
             min={-100}
             max={100}
-            value={y}
-            onChange={(e) =>
-              onChange({ x, y: clampCoord(Number(e.target.value) || 0) })
-            }
+            value={placed ? y : ""}
+            placeholder="—"
+            onChange={(e) => {
+              const next = e.target.value;
+              if (next === "") return;
+              onChange({ x: placed ? x : 0, y: clampCoord(Number(next) || 0) });
+            }}
             className={inputClass}
           />
         </label>
       </div>
+      {error ? <span className="text-xs text-red-400">{error}</span> : null}
     </div>
   );
 }

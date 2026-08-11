@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import {
-  coordToMapPercent,
-  clampMapTopPercent,
-  depthParallaxSpeed,
-  depthZIndex,
-  yearOffsetPercent,
-  yearToDepth,
-} from "@/lib/coordinates";
+  EXPANDED_COVER_WIDTH,
+  mapCoverHeight,
+  MAP_COVER_WIDTH,
+  mapCoverSrc,
+  expandedCoverSizes,
+} from "@/lib/coverImages";
 import {
   ExpandedPlacement,
   measureExpandedSize,
@@ -20,6 +20,11 @@ import { LibraryItem } from "@/lib/types";
 
 interface MapItemProps {
   item: LibraryItem;
+  left: number;
+  top: number;
+  zIndex: number;
+  deleteMode?: boolean;
+  onDelete?: (id: string) => void;
 }
 
 const ZOOM_IN_MS = 70;
@@ -35,38 +40,23 @@ function getPortalRoot(): HTMLElement {
   return document.getElementById(PORTAL_ROOT_ID) ?? document.body;
 }
 
-function readParallaxVars(el: HTMLElement): { mx: number; my: number } {
-  const node = el.closest("[style]") ?? el.parentElement;
-  const styles = node ? getComputedStyle(node) : getComputedStyle(document.documentElement);
-  return {
-    mx: parseFloat(styles.getPropertyValue("--mx")) || 0,
-    my: parseFloat(styles.getPropertyValue("--my")) || 0,
-  };
-}
-
-export function MapItem({ item }: MapItemProps) {
+export const MapItem = memo(function MapItem({
+  item,
+  left,
+  top,
+  zIndex,
+  deleteMode = false,
+  onDelete,
+}: MapItemProps) {
   const hitRef = useRef<HTMLDivElement>(null);
   const expandedRef = useRef<HTMLDivElement>(null);
   const anchorCenterRef = useRef<{ x: number; y: number } | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const zoomOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expandedRef2 = useRef(false);
-  const frozenParallaxRef = useRef<{ mx: number; my: number } | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [closing, setClosing] = useState(false);
   const [placement, setPlacement] = useState<ExpandedPlacement | null>(null);
-
-  const [pos, setPos] = useState({
-    left: coordToMapPercent(item.x, "x"),
-    top: clampMapTopPercent(
-      coordToMapPercent(-item.y, "y") + yearOffsetPercent(item.watchedYear),
-    ),
-  });
-
-  const depth = yearToDepth(item.watchedYear);
-  const left = pos.left;
-  const top = pos.top;
-  const speed = depthParallaxSpeed(depth);
 
   function clearCloseTimer() {
     if (closeTimerRef.current) {
@@ -122,9 +112,6 @@ export function MapItem({ item }: MapItemProps) {
       setClosing(false);
       return;
     }
-    if (hitRef.current) {
-      frozenParallaxRef.current = readParallaxVars(hitRef.current);
-    }
     snapshotAnchor();
     setClosing(false);
     expandedRef2.current = true;
@@ -138,7 +125,6 @@ export function MapItem({ item }: MapItemProps) {
       setClosing(true);
       zoomOutTimerRef.current = setTimeout(() => {
         expandedRef2.current = false;
-        frozenParallaxRef.current = null;
         setExpanded(false);
         setClosing(false);
         setPlacement(null);
@@ -148,21 +134,42 @@ export function MapItem({ item }: MapItemProps) {
   }
 
   function handlePointerEnter() {
-    if (isTouchDevice()) return;
+    if (deleteMode || isTouchDevice()) return;
     handleOpen();
   }
 
   function handlePointerLeave() {
-    if (isTouchDevice()) return;
+    if (deleteMode || isTouchDevice()) return;
     handleClose();
   }
 
+  function handleDelete() {
+    onDelete?.(item.id);
+  }
+
   function handlePointerDown(e: React.PointerEvent) {
+    if (deleteMode) {
+      e.stopPropagation();
+      handleDelete();
+      return;
+    }
     if (!isTouchDevice()) return;
     e.stopPropagation();
     if (expandedRef2.current) handleClose();
     else handleOpen();
   }
+
+  useEffect(() => {
+    if (!deleteMode) return;
+    clearCloseTimer();
+    clearZoomOutTimer();
+    if (!expandedRef2.current) return;
+    expandedRef2.current = false;
+    setExpanded(false);
+    setClosing(false);
+    setPlacement(null);
+    anchorCenterRef.current = null;
+  }, [deleteMode]);
 
   useEffect(
     () => () => {
@@ -173,29 +180,13 @@ export function MapItem({ item }: MapItemProps) {
   );
 
   useEffect(() => {
-    if (!expanded || !isTouchDevice()) return;
+    if (!expanded || !isTouchDevice() || deleteMode) return;
     const onTapOutside = (e: PointerEvent) => {
       if (!hitRef.current?.contains(e.target as Node)) handleClose();
     };
     document.addEventListener("pointerdown", onTapOutside);
     return () => document.removeEventListener("pointerdown", onTapOutside);
-  }, [expanded]);
-
-  useLayoutEffect(() => {
-    const updatePosition = () => {
-      setPos({
-        left: coordToMapPercent(item.x, "x"),
-        // +Y = Comfort (top), -Y = Challenge (bottom) — invert for CSS top%
-        top: clampMapTopPercent(
-          coordToMapPercent(-item.y, "y") + yearOffsetPercent(item.watchedYear),
-        ),
-      });
-    };
-
-    updatePosition();
-    window.addEventListener("resize", updatePosition);
-    return () => window.removeEventListener("resize", updatePosition);
-  }, [item.x, item.y, item.watchedYear]);
+  }, [expanded, deleteMode]);
 
   useLayoutEffect(() => {
     if (!expanded) return;
@@ -211,28 +202,18 @@ export function MapItem({ item }: MapItemProps) {
     return () => ro.disconnect();
   }, [expanded]);
 
-  useEffect(() => {
-    if (!expanded) return;
-    const onResize = () => recalcPlacement();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [expanded]);
-
-  const mxExpr = frozenParallaxRef.current
-    ? String(frozenParallaxRef.current.mx)
-    : "var(--mx)";
-  const myExpr = frozenParallaxRef.current
-    ? String(frozenParallaxRef.current.my)
-    : "var(--my)";
+  const thumbSrc = item.coverUrl ? mapCoverSrc(item.coverUrl) : "";
 
   const expandedCover = item.coverUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src={item.coverUrl}
       alt={item.title}
+      width={EXPANDED_COVER_WIDTH}
+      height={Math.round(EXPANDED_COVER_WIDTH * 1.4)}
+      sizes={expandedCoverSizes()}
+      quality={58}
       className="block w-full object-cover"
       style={{ height: "var(--card-expanded-h)", maxWidth: "none" }}
-      decoding="async"
       draggable={false}
     />
   ) : (
@@ -243,52 +224,6 @@ export function MapItem({ item }: MapItemProps) {
         backgroundColor: item.color ?? "#666",
       }}
     />
-  );
-
-  const defaultCover = item.coverUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={item.coverUrl}
-      alt=""
-      className="pointer-events-none block"
-      style={{
-        width: "var(--card-w)",
-        height: "var(--card-h)",
-        maxWidth: "none",
-        objectFit: "cover",
-      }}
-      loading="lazy"
-      decoding="async"
-      draggable={false}
-    />
-  ) : (
-    <div
-      className="pointer-events-none"
-      style={{
-        width: "var(--card-w)",
-        height: "var(--card-h)",
-        backgroundColor: item.color ?? "#666",
-      }}
-    />
-  );
-
-  const expandedCard = (
-    <div
-      ref={expandedRef}
-      className="text-white"
-      style={{ width: "var(--card-expanded-w)", fontSize: "1rem" }}
-    >
-      {expandedCover}
-      <div className="mt-[0.5em] px-[0.25em] text-center">
-        <p className="text-[1.5em] leading-tight">{item.title}</p>
-        <p className="mt-[0.35em] text-[1em] leading-snug text-white/60">
-          {item.year} · {item.director}
-        </p>
-        <p className="mt-[0.25em] text-[1em] leading-snug text-white/60">
-          {truncateWords(item.description, 10)}
-        </p>
-      </div>
-    </div>
   );
 
   const portal =
@@ -303,6 +238,7 @@ export function MapItem({ item }: MapItemProps) {
         }}
       >
         <div
+          className="card-zoom-anim"
           style={{
             transformOrigin: placement
               ? `${placement.originX}px ${placement.originY}px`
@@ -314,7 +250,22 @@ export function MapItem({ item }: MapItemProps) {
                 : "none",
           }}
         >
-          {expandedCard}
+          <div
+            ref={expandedRef}
+            className="text-white"
+            style={{ width: "var(--card-expanded-w)", fontSize: "1rem" }}
+          >
+            {expandedCover}
+            <div className="mt-[0.5em] px-[0.25em] text-center">
+              <p className="text-[1.5em] leading-tight">{item.title}</p>
+              <p className="mt-[0.35em] text-[1em] leading-snug text-white/60">
+                {item.year} · {item.director}
+              </p>
+              <p className="mt-[0.25em] text-[1em] leading-snug text-white/60">
+                {truncateWords(item.description, 10)}
+              </p>
+            </div>
+          </div>
         </div>
       </div>,
       getPortalRoot(),
@@ -324,20 +275,14 @@ export function MapItem({ item }: MapItemProps) {
     <>
       <div
         ref={hitRef}
-        className="absolute touch-none"
-        style={
-          {
-            left: `${left}%`,
-            top: `${top}%`,
-            width: "var(--card-w)",
-            height: "var(--card-h)",
-            boxSizing: "content-box",
-            padding: "0.75rem",
-            margin: "-0.75rem",
-            zIndex: expanded ? 9999 : depthZIndex(item.watchedYear),
-            transform: `translate(calc(-50% + calc(${mxExpr} * ${speed} * calc(-1 * var(--parallax-range)))), calc(-50% + calc(${myExpr} * ${speed} * calc(-1 * var(--parallax-range)))))`,
-          } as React.CSSProperties
-        }
+        className={`map-item-hit absolute touch-none ${deleteMode ? "cursor-pointer" : ""}`}
+        style={{
+          left: `${left}%`,
+          top: `${top}%`,
+          width: "var(--card-w)",
+          height: "var(--card-h)",
+          zIndex: expanded ? 9999 : zIndex,
+        }}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
         onPointerDown={handlePointerDown}
@@ -346,10 +291,44 @@ export function MapItem({ item }: MapItemProps) {
           className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
           style={{ visibility: expanded ? "hidden" : "visible" }}
         >
-          {defaultCover}
+          {thumbSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumbSrc}
+              alt=""
+              width={MAP_COVER_WIDTH}
+              height={mapCoverHeight()}
+              className="map-item-thumb block"
+              style={{
+                width: "var(--card-w)",
+                height: "var(--card-h)",
+                maxWidth: "none",
+                objectFit: "cover",
+              }}
+              decoding="async"
+              draggable={false}
+            />
+          ) : (
+            <div
+              className="pointer-events-none"
+              style={{
+                width: "var(--card-w)",
+                height: "var(--card-h)",
+                backgroundColor: item.color ?? "#666",
+              }}
+            />
+          )}
+          {deleteMode ? (
+            <span
+              aria-hidden
+              className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[0.65rem] leading-none text-black shadow-[0_0_0_1px_rgba(0,0,0,0.35)]"
+            >
+              −
+            </span>
+          ) : null}
         </div>
       </div>
       {portal}
     </>
   );
-}
+});
